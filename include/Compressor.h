@@ -9,7 +9,8 @@
 #include "CompressionEngine.h"
 
 class Compressor : CompressionEngine {
-public:
+public:  
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   Compressor(double positionThreshold = 5e-2,
 	     double positionPeakThreshold = 5e-4,
 	     double rotationThreshold = 1e-2,
@@ -17,9 +18,9 @@ public:
   ~Compressor();
 
   // add a frame to the compressed data
-  bool compressFrame(Frame& newFrame, bool force = false);
+  bool compressFrame(const Frame& newFrame, bool force = false);
 
-  bool finalizeRepresentation(Frame& newFrame);
+  bool finalizeRepresentation(const Frame& newFrame);
   bool finalizeRepresentation();
 
   Eigen::MatrixXd getCompressedMatrixPositionRepresentation();
@@ -28,6 +29,12 @@ public:
   std::vector<CompressionEngine::CompressedRotationFrame> getCompressedVectorRotationRepresentation();
   
 private:
+  // using the intermediateFrames, compute the error and compressed frames
+  bool compressFramePosition();
+  bool compressFrameRotation();
+
+  bool peakDetected(const double& error, double& error);
+  
   // the fast position fit and error metric solver
   Quadratic qSolve;
   
@@ -40,12 +47,10 @@ private:
   double positionError;
   double positionErrorPrev;
   double positionErrorDiffPrev;
-  double positionErrorDDeriv;
 
   double rotationError;
   double rotationErrorPrev;
   double rotationErrorDiffPrev;
-  double rotationErrorDDeriv;
 
   // previous and previous-previous compressed frames for use with the peak detection phase
   CompressionEngine::CompressedPositionFrame cPosFrame;
@@ -61,7 +66,8 @@ private:
   CompressionEngine::Frame ppFrame;
   
   // The whole amount of sliding window frames does not need to be kept. Only a small subset of frames are needed for the rotation fitting
-  std::vector<CompressionEngine::Frame> intermediateFrames;
+  std::vector<CompressionEngine::Frame> intermediatePositionFrames;
+  std::vector<CompressionEngine::Frame> intermediateRotationFrames;
   
   // compressed states
   std::vector<CompressionEngine::CompressedPositionFrame> compressedPositionFrames;
@@ -70,6 +76,7 @@ private:
   // stats gathering
   int32_t contactFrames = 0;
   int32_t errorFrames = 0;
+  bool contactFlag = 0;
 }
 
 #endif//COMPRESSOR_H
