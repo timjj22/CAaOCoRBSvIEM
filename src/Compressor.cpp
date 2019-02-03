@@ -24,12 +24,30 @@ Compressor::~Compressor()
 
 }
 
-bool Compressor::compressFrame(const Frame& newFrame, bool force /* = 0*/)
+bool Compressor::compressFrame(const Frame& newFrame, bool contact, bool force /* = 0*/)
 {
   intermediatePositionFrames.push_back(newFrame);
   intermediateRotationFrames.push_back(newFrame);
 
-  return compressFramePosition(force) || compressFrameRotation(force);
+  // if we know there is a contact starting now, then drop this frame and the this+2 frame keyframes
+  bool forceFrame = force;
+  if(contact)
+  {
+    // force this frame, and the one 2 in the future
+    futureKeyframe = 2;
+    forceFrame = 1;
+  }
+  else
+  {
+    // decrement the future keyframe count, but don't worry about wrap-around
+    futureKeyframe = std::max(-1, futureKeyframe - 1);
+  }
+  if(futureKeyframe == 0)
+  {
+    forceFrame |= 1;
+  }
+
+  return compressFramePosition(forceFrame) || compressFrameRotation(forceFrame);
 }
 
 bool Compressor::compressFramePosition(bool force)
@@ -55,7 +73,7 @@ bool Compressor::compressFramePosition(bool force)
     intermediatePositionFrames.erase(intermediatePositionFrames.begin(), intermediatePositionFrames.end() - 1);
 
     // remove the contact flag:
-    contactFlag = 0;
+    contactFlag = 0;    
   }
   else if(peakDetected(pPThreshold, positionError, positionErrorPrev, positionErrorDiffPrev))
   {
@@ -70,6 +88,8 @@ bool Compressor::compressFramePosition(bool force)
     // now set the flag to drop the current frame next run through
     contactFlag = 1;
 
+    // add 2 frames here:
+    contactFrames += 2;    
   }
   else if(std::abs(positionError) > pThreshold)
   {
@@ -77,13 +97,24 @@ bool Compressor::compressFramePosition(bool force)
     compressedPositionFrames.push_back(cpPosFrame);
     compressed = 1;
 
-    //
+    // remove the irrelevant frames
+    intermediatePositionFrames.erase(intermediatePositionFrames.begin(), intermediatePositionFrames.end() - 2);
+
+    // add 1 error based frame:
+    errorFrames += 1;
   }
   
   // update the previous frames
   cppPosFrame = cpPosFrame;  
   cpPosFrame = cPosFrame;
-  
+
+  if(compressed)
+  {
+    // reset the error calculations
+    positionError = 0;
+    positionErrorPrev = 0;
+    positionErrorDiffPrev = 0;
+  }
   return compressed;
 }
 
@@ -107,20 +138,40 @@ bool Compressor::compressFrameRotation(bool force)
   {
     compressedRotationFrames.push_back(cRotFrame);
     compressed = 1;
+    
+    // remove the frames from the window
+    intermediateRotationFrames.erase(intermediateRotationFrames.begin(), intermediateRotationFrames.end() - 1);
   }
   else if(peakDetected(rPThreshold, rotationError, rotationErrorPrev, rotationErrorDiffPrev))
   {
     compressedRotationFrames.push_back(cppRotFrame);
     compressed = 1;
+
+    // remove the frames from the window:
+    intermediateRotationFrames.erase(intermediateRotationFrames.begin(), intermediateRotationFrames.end() - 3);
+    // since we don't do the double keyframe here,
+    contactFlag += 1;
   }
   else if(std::abs(rotationError) > rThreshold)
   {
     compressedRotationFrames.push_back(cpRotFrame);
     compressed = 1;
+
+    // remove the frames from the window
+    intermediateRotationFrames.erase(intermediateRotationFrames.begin(), intermediateRotationFrames.end() - 2);
+    errorFrames += 1;
   }
 
   cppRotFrame = cpRotFrame;
   cpRotFrame = cRotFrame;
+
+  if(compressed)
+  {
+    // reset the errors
+    rotationError = 0;
+    rotationErrorPrev = 0;
+    rotationErrorDiffPrev = 0;
+  }
 
   return compressed;
 }

@@ -7,6 +7,8 @@
 #define COMPRESSOR_H
 
 #include "CompressionEngine.h"
+#include "Quadratic.h"
+#include "RotationInterpolation.h"
 
 class Compressor : CompressionEngine {
 public:  
@@ -17,8 +19,14 @@ public:
 	     double rotationPeakThreshold = 5e-3);
   ~Compressor();
 
-  // add a frame to the compressed data
-  bool compressFrame(const Frame& newFrame, bool force = false);
+  /*
+    Add a frame to the compressed representation.
+
+    newFrame: the new frame to add into the compressed window
+    contact: a flag for a contact event, used when you are given the contact information from the simulation
+    force: force the current 
+  */
+  bool compressFrame(const Frame& newFrame, bool contact, bool force = false);
 
   bool finalizeRepresentation(const Frame& newFrame);
   bool finalizeRepresentation();
@@ -30,13 +38,14 @@ public:
   
 private:
   // using the intermediateFrames, compute the error and compressed frames
-  bool compressFramePosition();
-  bool compressFrameRotation();
+  bool compressFramePosition(bool force);
+  bool compressFrameRotation(bool force);
 
-  bool peakDetected(const double& error, double& error);
+  bool peakDetected(const double& threshold, const double& error, double& prevError, double& prevErrorDiff);
   
   // the fast position fit and error metric solver
   Quadratic qSolve;
+  RotationInterpolation RI;
   
   double pThreshold;   // Position
   double pPThreshold;  // Position Peak
@@ -76,7 +85,10 @@ private:
   // stats gathering
   int32_t contactFrames = 0;
   int32_t errorFrames = 0;
+
+  // dropping future keyframes
   bool contactFlag = 0;
+  int8_t futureKeyframe = 0;
 }
 
 #endif//COMPRESSOR_H

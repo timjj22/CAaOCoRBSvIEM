@@ -4,7 +4,6 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <vector>
-#include "DataFormat.h"
 #include <iostream>
 #include <math.h>
 
@@ -12,12 +11,9 @@ class RotationInterpolation
 {
 public:
   RotationInterpolation();
-  RotationInterpolation(DataFormat dataFormat, DataFormat compressedDataFormat)
   {
     PREV_QUAT = Eigen::Quaternion<double>(1,0,0,0);
     REF_QUAT = Eigen::Quaternion<double>(1,0,0,0);
-    df = dataFormat;
-    cDF = compressedDataFormat;
   }
   ~RotationInterpolation();
 

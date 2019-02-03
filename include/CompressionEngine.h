@@ -6,7 +6,9 @@
 #ifndef COMPRESSIONENGINE_H
 #define COMPRESSIONENGINE_H
 
-#include <Eigen/Core.h>
+#include <Eigen/Core>
+#include <Eigen/Geometry>
+#include <Eigen/Dense>
 
 class CompressionEngine {
 public:
@@ -23,16 +25,16 @@ public:
   };
   struct CompressedPositionFrame {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    CompressedFrame(double t, Eigen::VectorXd position) : time(t), pos(position) { };
-    ~CompressedFrame() { };
+    CompressedPositionFrame(double t, Eigen::VectorXd position) : time(t), pos(position) { };
+    ~CompressedPositionFrame() { };
 
     double time;
     Eigen::VectorXd pos;
   };
   struct CompressedRotationFrame {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    CompressedFrame(double t, Eigen::Vector4d rotation) : time(t), rot(rotation) { };
-    ~CompressedFrame() { };    
+    CompressedRotationFrame(double t, Eigen::Vector4d rotation) : time(t), rot(rotation) { };
+    ~CompressedRotationFrame() { };    
     
     double time;
     Eigen::Vector4d rot; // is not a quaternion, but 3 quaternion components and an angular velocity
