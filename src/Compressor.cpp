@@ -17,6 +17,7 @@ Compressor::Compressor(double positionThreshold/* = 5e-2*/,
   rPThreshold = rotationPeakThreshold;
 
   qSolve = Quadratic();
+  RI = RotationInterpolation();
 }
 
 Compressor::~Compressor()
