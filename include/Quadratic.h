@@ -4,14 +4,11 @@
 #include <Eigen/Dense>
 #include <vector>
 #include <iostream>
+#include "CompressionEngine.h"
 
 class Quadratic
 {
 public:
-  Quadratic()
-  {
-    // don't use this
-  }
   Quadratic()
   {
     // set the constraints for the optimization
@@ -20,7 +17,7 @@ public:
     resetFit(NULL);
   }
   
-  bool resetFit(std::vector<CompressionEngine::Frames>* intermediateFrames)
+  bool resetFit(std::vector<CompressionEngine::Frame>* intermediateFrames)
   {
     intermediate = intermediateFrames;
     /* FAST methods are only to be used per-object compression */
@@ -32,7 +29,7 @@ public:
     /* Add the previously entered intermediate frames into the running fit alg */
     for(uint32_t j = 0; intermediateFrames != NULL && j < intermediateFrames->size(); j++)
     {
-      fastUpdate((*intermediateFrames)[j].pos, j);
+      fastUpdate((*intermediateFrames)[j], (double)j);
     }
     return 1;
   }
@@ -47,8 +44,6 @@ public:
   double fastErrorEstimate(const Eigen::MatrixXd& weights);
 
 private:
-  DataFormat dataFormat;
-  
   /*
     QUADRATIC SCHEME:
     
@@ -66,11 +61,11 @@ private:
   bool determineQuadraticCoefficients(const Eigen::MatrixXd & X, const Eigen::MatrixXd & T, const Eigen::MatrixXd & BCs, Eigen::MatrixXd & A);
   bool fastDetermineQuadraticCoefficients(const Eigen::MatrixXd& TTX, const Eigen::MatrixXd& BCs, Eigen::MatrixXd& A);
 
-  bool fastUpdate(const Eigen::VectorXd& newestPos);
-  bool fastUpdate(const Eigen::VectorXd& newestPos, double frameNumber);
+  bool fastUpdate(const CompressionEngine::Frame& newestFrame);
+  bool fastUpdate(const CompressionEngine::Frame& newestPos, double frameNumber);
   
   // constructs a full matrix from the intermediate frame vector
-  bool constructIntermediateStateMatrix(std::vector<Eigen::VectorXd> & intermediateFrames, Eigen::MatrixXd & states);
+  bool constructIntermediateStateMatrix(const std::vector<CompressionEngine::Frame>& intermediateFrames, Eigen::MatrixXd& states);
 
   bool constructTimeMatrix(int32_t steps, Eigen::MatrixXd & t);
 
@@ -87,7 +82,7 @@ private:
   Eigen::MatrixXd fastXTX;
   
   // the intermediate frames
-  std::vector<CompressionEngine::Frame> * intermediate = NULL;
+  std::vector<CompressionEngine::Frame>* intermediate = NULL;
 };
 
 #endif //QUADRATIC_H

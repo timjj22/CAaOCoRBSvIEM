@@ -95,7 +95,7 @@ bool Quadratic::fastDetermineQuadraticCoefficients(const Eigen::MatrixXd& TTX, c
   return 1;      
 }
 
-bool Quadratic::constructIntermediateStateMatrix(std::vector<Eigen::VectorXd> & intermediateFrames, Eigen::MatrixXd & states)
+bool Quadratic::constructIntermediateStateMatrix(const std::vector<CompressionEngine::Frame>& intermediateFrames, Eigen::MatrixXd & states)
 {
   // cannot make if no data
   if(intermediateFrames.size() == 0)
@@ -148,9 +148,6 @@ bool Quadratic::fastPrecompute(std::vector<CompressionEngine::Frame>& intermedia
     (1/4.)*(1/pow(nf, 3))*pow(nf, 2)*pow(nf + 1, 2),                           (1/pow(nf, 2))*(1/6.)*(nf)*(nf+1)*(2*nf+1),         (1/nf)*(1/2.)*(nf)*(nf + 1),
     (1/pow(nf, 2))*(1/6.)*(nf)*(nf+1)*(2*nf+1),                                (1/nf)*(1/2.)*(nf)*(nf + 1),                        nf + 1.0;
 
-  // no problem here
-  // std::cout << "FAST: \n" << fastTTT << std::endl;
-  
   // Eigen::MatrixXd TtT;
   // constructTimeMatrix(intermediateFrames.size(), TtT);
   // constructInvLHS(TtT);
@@ -161,18 +158,18 @@ bool Quadratic::fastPrecompute(std::vector<CompressionEngine::Frame>& intermedia
   return 1;
 }
 
-bool Quadratic::fastUpdate(const Eigen::VectorXd& newestPos)
+bool Quadratic::fastUpdate(const CompressionEngine::Frame& newestFrame)
 {
-  return fastUpdate(newestPos, (double)intermediate->size() - 1.0);
+  return fastUpdate(newestFrame, (double)intermediate->size() - 1.0);
 }
 
-bool Quadratic::fastUpdate(const Eigen::VectorXd& newestPos, double frameNumber)
+bool Quadratic::fastUpdate(const CompressionEngine::Frame& newestFrame, double frameNumber)
 {
   /*
     This will update the data dependent terms in the fast update least squares solve
   */  
-  fastTTX = fastTTX + (Eigen::VectorXd(3) << (pow(frameNumber, 2)), (frameNumber), 1).finished()*newestPos.transpose();
-  fastXTX = fastXTX + newestPos*newestPos.transpose();
+  fastTTX = fastTTX + (Eigen::VectorXd(3) << (pow(frameNumber, 2)), (frameNumber), 1).finished()*newestFrame.pos.transpose();
+  fastXTX = fastXTX + newestFrame.pos*newestFrame.pos.transpose();
   return 1;
 }
 
@@ -181,8 +178,7 @@ bool Quadratic::fastSolve(const Eigen::MatrixXd & BCs, Eigen::MatrixXd & weights
   if(intermediate->size() < 1)
     return 0;
 
-  Eigen::VectorXd newestPos = intermediateFrames->back().pos;
-
+  CompressionEngine::Frame newestPos = intermediate->back();
   fastUpdate(newestPos);
 
   // do a linear fit if there aren't enough frames to do a quadratic fit

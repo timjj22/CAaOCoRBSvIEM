@@ -77,18 +77,18 @@ double RotationInterpolation::linearFit(const std::vector<CompressionEngine::Fra
   {
     // get the periodicity
     // df.getQuaternionFromState(&intermediateFrames[floor(intermediateFrames.size()/2.0)], object, temp);    
-    Eigen::Quaterniond qMiddleLower = intermediateFrames[floor(intermediateFrames.size()/2.0)];
+    Eigen::Quaterniond qMiddleLower = intermediateFrames[floor(intermediateFrames.size()/2.0)].rot;
     // df.getQuaternionFromState(&intermediateFrames[floor(intermediateFrames.size()/2.0) + 1], object, temp);
-    Eigen::Quaterniond qMiddleUpper = intermediateFrames[floor(intermediateFrames.size()/2.0) + 1];
+    Eigen::Quaterniond qMiddleUpper = intermediateFrames[floor(intermediateFrames.size()/2.0) + 1].rot;
     flipQuatToPrev(qMiddleLower);
     flipQuatToPrev(qMiddleUpper);
     drdf = 2*acos((qMiddleUpper * qMiddleLower.conjugate()).normalized().w());
   }
   double periodicity = drdf*intermediateFrames.size()/(2.0*M_PI);
   
-  periodicitySearch(intermediateFrames, qFinal, object, periodicity, AA, fittedFrame);
+  periodicitySearch(intermediateFrames, qFinal, periodicity, AA, fittedFrame);
   
-  return fastLinearQuaternionErrorEstimate(intermediateFrames, object, fittedFrame);
+  return fastLinearQuaternionErrorEstimate(intermediateFrames, fittedFrame);
 }
 
 Eigen::Quaternion<double> RotationInterpolation::completeQuatFromCompressedFrame(const Eigen::VectorXd& q)
@@ -100,7 +100,7 @@ Eigen::Quaternion<double> RotationInterpolation::completeQuatFromCompressedFrame
   return Eigen::Quaternion<double>( wSq <= 0.001 ? 0 : sqrt(wSq) , q(0), q(1), q(2)).normalized();
 }
 
-double RotationInterpolation::fastLinearQuaternionErrorEstimate(const std::vector<Eigen::VectorXd>& intermediateFrames, int32_t object, const Eigen::VectorXd& fittedFrame)
+double RotationInterpolation::fastLinearQuaternionErrorEstimate(const std::vector<CompressionEngine::Frame>& intermediateFrames, const CompressionEngine::CompressedRotationFrame& fittedFrame)
 {
   double error = 0;
   
@@ -114,17 +114,13 @@ double RotationInterpolation::fastLinearQuaternionErrorEstimate(const std::vecto
   };
 
   // get the axis for rotation
-  //PREV_QUAT.setIdentity();
-  Eigen::VectorXd temp;
+  PREV_QUAT.setIdentity();
   Eigen::Quaternion<double> qInitial, qFinal, qDiff;
   
-  //df.getQuaternionFromState(&intermediateFrames.back(), object, temp);
-  qFinal = completeQuatFromCompressedFrame(fittedFrame.tail(3));//Eigen::Quaternion<double>(temp(3), temp(0), temp(1), temp(2));
-  //flipQuat(qFinal);
+  qFinal = completeQuatFromCompressedFrame(fittedFrame.rot.tail(3));
+  
+  qInitial = intermediateFrames.front().rot;
 
-  df.getQuaternionFromState(&intermediateFrames[0], object, temp);
-  qInitial = Eigen::Quaternion<double>(temp(3), temp(0), temp(1), temp(2));
-  //flipQuat(qInitial);
 
   flipQuat(qInitial);
   flipQuatToPrev(qFinal);
@@ -138,48 +134,47 @@ double RotationInterpolation::fastLinearQuaternionErrorEstimate(const std::vecto
     // get the normalized times:
     double t = checkIndices[i]/((double)intermediateFrames.size() - 1);
 
-    AA.angle() = fittedFrame(0) * t;
+    AA.angle() = fittedFrame.rot(0) * t;
 
     // if the rotation is too small, the axis is wrong for numerics reasons (so do simple slerp in that case)
-    Eigen::VectorXd qInterp;
-    if(abs(fittedFrame(0)) > 0.1)
+    Eigen::Quaterniond qInterp;
+    if(abs(fittedFrame.rot(0)) > 0.1)
     {
-      Eigen::Quaternion<double> interpQuaternion = Eigen::Quaternion<double>(AA) * qInitial;
-      
-      // member that XYZW
-      qInterp = (Eigen::VectorXd(4) << interpQuaternion.x(), interpQuaternion.y(), interpQuaternion.z(), interpQuaternion.w()).finished();
+      qInterp = Eigen::Quaternion<double>(AA) * qInitial;
     }
     else
     {
-      qInterp = (Eigen::VectorXd(4) << qInitial.x()*(1-t) + qFinal.x()*t,
-		 qInitial.y()*(1-t) + qFinal.y()*t,
-		 qInitial.z()*(1-t) + qFinal.z()*t,
-		 qInitial.w()*(1-t) + qFinal.w()*t).finished().normalized();
+      qInterp = qInitial.slerp(t, qFinal);
+	/*
+	  (Eigen::VectorXd(4) << qInitial.x()*(1-t) + qFinal.x()*t,
+	  qInitial.y()*(1-t) + qFinal.y()*t,
+	  qInitial.z()*(1-t) + qFinal.z()*t,
+	  qInitial.w()*(1-t) + qFinal.w()*t).finished().normalized();
+	*/
     }
     
-    Eigen::VectorXd qState;
-    for(int32_t j = 0; j < cDF.getNumberOfObjects(); j++)
+    Eigen::Quaterniond qState;
+
+    qState = intermediateFrames[checkIndices[i]].rot;
+    if(qState.coeffs().dot(qInterp.coeffs()) < 0)
     {
-      df.getQuaternionFromState(&intermediateFrames[checkIndices[i]], j, qState);
-      if(qState.dot(qInterp) < 0)
-      {
-	qInterp *= -1.0;
-      }
-      error += ( qState - qInterp ).squaredNorm();
+      qInterp.coeffs() *= -1.0;
     }
+    error += ( qState.coeffs() - qInterp.coeffs() ).squaredNorm();
+    
   }
   // normalize to as if all of the frames were considered
   return error * (intermediateFrames.size() / (double)checkIndices.size());       
 }
 
-bool RotationInterpolation::periodicitySearch(const std::vector<Eigen::VectorXd>& intermediateFrames, const Eigen::Quaternion<double>& qFinal, int32_t object, double periodicity, const Eigen::AngleAxis<double>& AA, Eigen::VectorXd& fit)
+bool RotationInterpolation::periodicitySearch(const std::vector<CompressionEngine::Frame>& intermediateFrames, const Eigen::Quaterniond& qFinal, double periodicity, const Eigen::AngleAxis<double>& AA, CompressionEngine::CompressedRotationFrame& fit)
 {
   // do a search for the combinations of periodicities which gives the lowest cumulative error in the fit
   double bestError = -2;
-  Eigen::VectorXd potentialFit(4);
+  CompressionEngine::CompressedRotationFrame potentialFit(intermediateFrames.back().time);
 
   // to reconstruct the w from the norm identity, need w to be positive (ensured earlier)
-  potentialFit << 0, qFinal.x(), qFinal.y(), qFinal.z();
+  potentialFit.rot << 0, qFinal.x(), qFinal.y(), qFinal.z();
   
   for(int8_t j = 0; j <= 4; j++)
   {
@@ -202,14 +197,12 @@ bool RotationInterpolation::periodicitySearch(const std::vector<Eigen::VectorXd>
     for(uint8_t i = 0; i < 2; i++)
     {
       if(i == 1)
-	potentialFit(0) = -1.0*(2*M_PI - AA.angle() + std::floor(pOne)*2.0*M_PI);
+	potentialFit.rot(0) = -1.0*(2*M_PI - AA.angle() + std::floor(pOne)*2.0*M_PI);
       else
-	potentialFit(0) = (AA.angle() + std::floor(pOne)*2.0*M_PI);
+	potentialFit.rot(0) = (AA.angle() + std::floor(pOne)*2.0*M_PI);
 
-      double error = fastLinearQuaternionErrorEstimate(intermediateFrames, object, potentialFit);
-      //printf("error: %f\n", error);
-      // penalize larger rotations for spins with large spacing between frames      
-      //if(error < bestError || (error <= (bestError + eps) && abs(potentialFit(0)) < abs(fit(0)))  || bestError < -1)
+      double error = fastLinearQuaternionErrorEstimate(intermediateFrames, potentialFit);
+
       if(error < bestError || bestError < -1)
       {
 	fit = potentialFit;
@@ -217,49 +210,6 @@ bool RotationInterpolation::periodicitySearch(const std::vector<Eigen::VectorXd>
       }
     }
   }
-  // if(bestError > 0.01)
-  //   printf("  periodicity search best error: %f   ", bestError);
-  return 1;
-}
-
-bool RotationInterpolation::normSlerp(const Eigen::VectorXd& qOne, const Eigen::VectorXd& qTwo, Eigen::Quaternion<double>& quat)
-{
-  Eigen::Quaternion<double> one(qOne(3), qOne(0), qOne(1), qOne(2));
-  Eigen::Quaternion<double> two(qTwo(3), qTwo(0), qTwo(1), qTwo(2));
-
-  flipQuat(one);
-  flipQuat(two);
-
-  quat = one.slerp(0.5, two);
-  
-  return 1;
-}
-
-// augmentedAxisAngle is the compressed axisangle and the initial quaternion stacked together: [angle, Ax, Ay, Az, Qx, Qy, Qz, Qw]
-bool RotationInterpolation::interpolate(const Eigen::VectorXd& augmentedAxisAngle, double normT, Eigen::VectorXd& quaternion)
-{
-  // construct the quaternion from the axis angle:
-  Eigen::Quaternion<double> qInterp;
-  axisAngleToQuat(augmentedAxisAngle, normT, qInterp);
-  
-  // now rotate the quat WRT to the initial rotation
-  Eigen::Quaternion<double> qFirst(augmentedAxisAngle(7), augmentedAxisAngle(4), augmentedAxisAngle(5), augmentedAxisAngle(6));
-
-  qInterp = qInterp * qFirst;
-
-  quaternion = (Eigen::VectorXd(4) << qInterp.x(), qInterp.y(), qInterp.z(), qInterp.w()).finished();
-
-  return 1;
-}
-
-// axis angle is [alpha X Y Z]
-Eigen::Quaternion<double> RotationInterpolation::axisAngleToQuat(const Eigen::VectorXd& axisAngle, double normT)
-{
-  return Eigen::Quaternion<double>(cos(normT*axisAngle(0)/2.0), axisAngle(1)*sin(normT*axisAngle(0)/2.0), axisAngle(2)*sin(normT*axisAngle(0)/2.0), axisAngle(3)*sin(normT*axisAngle(0)/2.0));
-}
-bool RotationInterpolation::axisAngleToQuat(const Eigen::VectorXd& axisAngle, double normT, Eigen::Quaternion<double>& q)
-{
-  q = Eigen::Quaternion<double>(cos(normT*axisAngle(0)/2.0), axisAngle(1)*sin(normT*axisAngle(0)/2.0), axisAngle(2)*sin(normT*axisAngle(0)/2.0), axisAngle(3)*sin(normT*axisAngle(0)/2.0));
   return 1;
 }
 
@@ -267,11 +217,7 @@ bool RotationInterpolation::flipQuat(Eigen::Quaternion<double>& q)
 {
   if(REF_QUAT.dot(q) < 0)
   {
-    // there's no "-" overloaded for the quaternion operator 
-    q.w() = -q.w();
-    q.x() = -q.x();
-    q.y() = -q.y();
-    q.z() = -q.z();    
+    q.coeffs() *= -1;
   }
   PREV_QUAT = q;
   return 1;
@@ -281,11 +227,7 @@ bool RotationInterpolation::flipQuatToPrev(Eigen::Quaternion<double>& q)
 {
   if(PREV_QUAT.dot(q) < 0)
   {
-    // there's no "-" overloaded for the quaternion operator 
-    q.w() = -q.w();
-    q.x() = -q.x();
-    q.y() = -q.y();
-    q.z() = -q.z();    
+    q.coeffs() *= -1;
   }
   PREV_QUAT = q;
   return 1;

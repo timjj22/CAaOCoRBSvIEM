@@ -10,9 +10,9 @@
 #include "Quadratic.h"
 #include "RotationInterpolation.h"
 
-class Compressor : CompressionEngine {
+class Compressor
+{
 public:  
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   Compressor(double positionThreshold = 5e-2,
 	     double positionPeakThreshold = 5e-4,
 	     double rotationThreshold = 1e-2,
@@ -26,9 +26,9 @@ public:
     contact: a flag for a contact event, used when you are given the contact information from the simulation
     force: force the current 
   */
-  bool compressFrame(const Frame& newFrame, bool contact, bool force = false);
+  bool compressFrame(const CompressionEngine::Frame& newFrame, bool contact, bool force = false);
 
-  bool finalizeRepresentation(const Frame& newFrame);
+  bool finalizeRepresentation(const CompressionEngine::Frame& newFrame);
   bool finalizeRepresentation();
 
   Eigen::MatrixXd getCompressedMatrixPositionRepresentation();
@@ -89,6 +89,9 @@ private:
   // dropping future keyframes
   bool contactFlag = 0;
   int8_t futureKeyframe = 0;
-}
+
+public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
 
 #endif//COMPRESSOR_H

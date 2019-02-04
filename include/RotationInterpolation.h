@@ -1,16 +1,12 @@
 #ifndef ROTATIONINTERPOLATION_H
 #define ROTATIONINTERPOLATION_H
 
-#include <Eigen/Core>
-#include <Eigen/Geometry>
-#include <vector>
-#include <iostream>
-#include <math.h>
+#include "CompressionEngine.h"
 
 class RotationInterpolation
 {
 public:
-  RotationInterpolation();
+  RotationInterpolation()
   {
     PREV_QUAT = Eigen::Quaternion<double>(1,0,0,0);
     REF_QUAT = Eigen::Quaternion<double>(1,0,0,0);
@@ -20,15 +16,9 @@ public:
   double getError(double s);
   
   // computes the frame needed for the compression of the frames, and outputs in form [ α x y z ], where α is the angular velocity and [x y z] are the components from the quaternion
-  double linearFit(int32_t object, const std::vector<Eigen::VectorXd>& intermediateFrames, Eigen::VectorXd& fittedFrame);
-  
-  bool interpolate(const Eigen::VectorXd& axisAngle, double normT, Eigen::VectorXd& quaternion);
+  double linearFit(const std::vector<CompressionEngine::Frame>& intermediateFrames, CompressionEngine::CompressedRotationFrame& fittedFrame);
     
-  double fastLinearQuaternionErrorEstimate(const std::vector<Eigen::VectorXd>& intermediateFrames, int32_t object, const Eigen::VectorXd& fittedFrame);  
-  
-  // double fastQuaternionErrorEstimate(const std::vector<Eigen::VectorXd>& intermediateFrames);
-  bool axisAngleToQuat(const Eigen::VectorXd& axisAngle, double normT, Eigen::Quaternion<double>& q);
-  Eigen::Quaternion<double> axisAngleToQuat(const Eigen::VectorXd& axisAngle, double normT);
+  double fastLinearQuaternionErrorEstimate(const std::vector<CompressionEngine::Frame>& intermediateFrames, const CompressionEngine::CompressedRotationFrame& fittedFrame);  
 
   Eigen::Quaternion<double> completeQuatFromCompressedFrame(const Eigen::VectorXd& q);
 
@@ -90,16 +80,7 @@ public:
 
 private:
   // Very long method arguments -.-
-  bool periodicitySearch(const std::vector<Eigen::VectorXd>& intermediateFrames, const Eigen::Quaternion<double>& qFirst, double periodicityOne, double periodicityTwo, const Eigen::MatrixXd& invT, const Eigen::AngleAxis<double>& AAone, const Eigen::AngleAxis<double>& AAtwo, Eigen::MatrixXd& fit);
-  bool periodicitySearch(const std::vector<Eigen::VectorXd>& intermediateFrames, const Eigen::Quaternion<double>& qFinal, int32_t object, double periodicity, const Eigen::AngleAxis<double>& AA, Eigen::VectorXd& fit);
-    
-  bool quadraticAxisAngleToQuat(const Eigen::VectorXd& axisAngle, double normT, Eigen::Quaternion<double>& q);
-  bool quadraticAxisAngleToQuat(const Eigen::VectorXd& wOne, const Eigen::VectorXd& wTwo, double normT, Eigen::Quaternion<double>& q);
-
-  bool normSlerp(const Eigen::VectorXd& qOne, const Eigen::VectorXd& qTwo, Eigen::Quaternion<double>& quat);
-
-  // determines the rotation between the prevQuat and the currently considered frame:
-  //bool deltaRotation(const Eigen::Quaternion<double>& q);
+  bool periodicitySearch(const std::vector<CompressionEngine::Frame>& intermediateFrames, const Eigen::Quaterniond& qFinal, double periodicity, const Eigen::AngleAxis<double>& AA, CompressionEngine::CompressedRotationFrame& fit);
 
   // since we only need the flattened E and W matrix for all of the operations, just need to construct it all flat
   bool constructFlatEMatrix(Eigen::VectorXd& E);
@@ -120,9 +101,6 @@ private:
   Eigen::Quaternion<double> PREV_QUAT;
   // reference to flip all of the quats around
   Eigen::Quaternion<double> REF_QUAT;  
-
-  DataFormat df; // Is the uncompressed format in order to extract the quaternions from each state
-  DataFormat cDF;
 };
 
 #endif //ROTATIONINTERPOLATION_H

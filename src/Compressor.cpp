@@ -25,7 +25,7 @@ Compressor::~Compressor()
 
 }
 
-bool Compressor::compressFrame(const Frame& newFrame, bool contact, bool force /* = 0*/)
+bool Compressor::compressFrame(const CompressionEngine::Frame& newFrame, bool contact, bool force /* = 0*/)
 {
   intermediatePositionFrames.push_back(newFrame);
   intermediateRotationFrames.push_back(newFrame);
@@ -57,7 +57,7 @@ bool Compressor::compressFramePosition(bool force)
   // the position step:
   qSolve.fastPrecompute(intermediatePositionFrames);
   Eigen::MatrixXd weights;
-  qSolve.fastSolve((Eigen::MatrixXd(3, 2) << intermediatePositionFrames.front().pos, intermediateFrames.back().pos).finished().transpose(), weights);
+  qSolve.fastSolve((Eigen::MatrixXd(3, 2) << intermediatePositionFrames.front().pos, intermediatePositionFrames.back().pos).finished().transpose(), weights);
   positionError = qSolve.fastErrorEstimate(weights);
   
   // now set the current compressed frame
@@ -122,17 +122,15 @@ bool Compressor::compressFramePosition(bool force)
 bool Compressor::compressFrameRotation(bool force)
 {  
   // the rotation step:
-  Eigen::VectorXd frame;
+  // Eigen::VectorXd frame;
+  cRotFrame = CompressionEngine::CompressedRotationFrame(intermediateRotationFrames.back().time);
   rotationError = 0.0;
-  compressed = 0;
+  bool compressed = 0;
   
-  if(intermediateFrames.size() >= 2)
-    rotationError = RI.linearFit(intermediateRotationFrames, frame);
+  if(intermediateRotationFrames.size() >= 2)
+    rotationError = RI.linearFit(intermediateRotationFrames, cRotFrame);
   else
-    frame = (Eigen::VectorXd(4) << 0, intermediateRotationFrames.back().rot.x(), intermediateRotationFrames.back().rot.y(), intermediateRotationFrames.back().rot.z()).finished();
-
-  // now copy into the current frame
-  cRotFrame = CompressionEngine::CompressedRotationFrame(intermediateRotationFrames.back().time, frame);
+    cRotFrame.rot = (Eigen::Vector4d() << 0, intermediateRotationFrames.back().rot.x(), intermediateRotationFrames.back().rot.y(), intermediateRotationFrames.back().rot.z()).finished();
 
   // keyframe placement:
   if(force || compressedRotationFrames.size() == 0)
@@ -187,7 +185,7 @@ bool Compressor::peakDetected(const double& threshold, const double& error, doub
   bool peak = 0;
   double currentDiff = error - prevError; // ≈ de/dt
 
-  if(std::abs(currentDiff - prevErrorDiff) > threshold && intermediateFrames.size() > 2)
+  if(std::abs(currentDiff - prevErrorDiff) > threshold)
   {
     // then we have a peak, reset previous
     peak = 1;
@@ -206,7 +204,7 @@ bool Compressor::peakDetected(const double& threshold, const double& error, doub
 Eigen::MatrixXd Compressor::getCompressedMatrixPositionRepresentation()
 {
   Eigen::MatrixXd cMat(7, compressedPositionFrames.size());
-  for(int32_t i = 0; i < CompressedPositionFrames.size(); i++)
+  for(uint32_t i = 0; i < compressedPositionFrames.size(); i++)
   {
     cMat(0, i) = compressedPositionFrames[i].time;
     cMat.col(i).tail(6) = compressedPositionFrames[i].pos;
@@ -218,7 +216,7 @@ Eigen::MatrixXd Compressor::getCompressedMatrixPositionRepresentation()
 Eigen::MatrixXd Compressor::getCompressedMatrixRotationRepresentation()
 {
   Eigen::MatrixXd cMat(5, compressedRotationFrames.size());
-  for(int32_t i = 0; i < CompressedRotationFrames.size(); i++)
+  for(uint32_t i = 0; i < compressedRotationFrames.size(); i++)
   {
     cMat(0, i) = compressedRotationFrames[i].time;
     cMat.col(i).tail(4) = compressedRotationFrames[i].rot;

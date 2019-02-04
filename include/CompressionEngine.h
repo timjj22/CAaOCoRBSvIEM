@@ -9,6 +9,8 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <Eigen/Dense>
+#include <Eigen/StdVector>
+#include <iostream>
 
 class CompressionEngine {
 public:
@@ -16,6 +18,7 @@ public:
   
   struct Frame {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    Frame() : time(0) { rot = Eigen::Quaterniond::Identity(); pos = Eigen::Vector3d::Zero(); };
     Frame(double t, Eigen::Quaterniond rotation, Eigen::Vector3d position) : time(t), rot(rotation), pos(position) { };
     ~Frame() { };
 
@@ -25,14 +28,18 @@ public:
   };
   struct CompressedPositionFrame {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    CompressedPositionFrame(double t, Eigen::VectorXd position) : time(t), pos(position) { };
+    CompressedPositionFrame() : time(0) { pos = Eigen::Vector3d::Zero();}
+    CompressedPositionFrame(double t) : time(t) { pos = Eigen::Vector3d::Zero(); };
+    CompressedPositionFrame(double t, Eigen::Vector3d position) : time(t), pos(position) { };
     ~CompressedPositionFrame() { };
 
     double time;
-    Eigen::VectorXd pos;
+    Eigen::Vector3d pos;
   };
   struct CompressedRotationFrame {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    CompressedRotationFrame() : time(0) { rot = Eigen::Vector4d::Zero(); };
+    CompressedRotationFrame(double t) : time(t) { rot = Eigen::Vector4d::Zero(); };
     CompressedRotationFrame(double t, Eigen::Vector4d rotation) : time(t), rot(rotation) { };
     ~CompressedRotationFrame() { };    
     
