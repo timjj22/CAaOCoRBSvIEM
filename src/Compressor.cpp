@@ -64,7 +64,7 @@ bool Compressor::compressFramePosition(bool force)
   cPosFrame = CompressionEngine::CompressedPositionFrame(intermediatePositionFrames.back().time, (Eigen::VectorXd(6) << weights.row(1).transpose(), intermediatePositionFrames.back().pos).finished());
   
   // keyframe placement if error bounds exceeded, or if forced for the current keyframe
-  if(contactFlag || force || compressedPositionFrames.size() == 0)
+  if(force || compressedPositionFrames.size() == 0)
   {
     // add the current frame
     compressedPositionFrames.push_back(cPosFrame);
@@ -87,8 +87,12 @@ bool Compressor::compressFramePosition(bool force)
     intermediatePositionFrames.erase(intermediatePositionFrames.begin(), intermediatePositionFrames.end() - 3);
     qSolve.resetFit(&intermediatePositionFrames);
 
-    // now set the flag to drop the current frame next run through
-    contactFlag = 1;
+    // add in the f-2 -> f keyframe
+    qSolve.fastSolve((Eigen::MatrixXd(3, 2) << intermediatePositionFrames.front().pos, intermediatePositionFrames.back().pos).finished().transpose(), weights);
+    compressedPositionFrames.emplace_back(intermediatePositionFrames.back().time, (Eigen::VectorXd(6) << weights.row(1).transpose(), intermediatePositionFrames.back().pos).finished());
+
+    intermediatePositionFrames.erase(intermediatePositionFrames.begin(), intermediatePositionFrames.end() - 1);
+    qSolve.resetFit(&intermediatePositionFrames);
 
     // add 2 frames here:
     contactFrames += 2;    
@@ -144,7 +148,6 @@ bool Compressor::compressFrameRotation(bool force)
   }
   else if(peakDetected(rPThreshold, rotationError, rotationErrorPrev, rotationErrorDiffPrev))
   {
-    printf("rot peak\n");
     compressedRotationFrames.push_back(cppRotFrame);
     compressed = 1;
 

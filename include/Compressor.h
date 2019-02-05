@@ -88,7 +88,7 @@ private:
 
   // dropping future keyframes
   bool contactFlag = 0;
-  int8_t futureKeyframe = 0;
+  int8_t futureKeyframe = -1; 
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

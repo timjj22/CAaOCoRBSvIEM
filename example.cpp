@@ -66,13 +66,15 @@ int main(int argc, char* argv[])
 
   // use the compression parameters to construct the Compressor. If 1 is specified, all should be
   double position_threshold = 0, position_peak_threshold = 0, rotation_threshold = 0, rotation_peak_threshold = 0;
-  if(j["compression_params"].count("position_error"))
+  if(j["compression_params"].count("position_threshold"))
   {
     position_threshold      = j["compression_params"]["position_threshold"];
     position_peak_threshold = j["compression_params"]["position_peak_threshold"];
     rotation_threshold      = j["compression_params"]["rotation_threshold"];
     rotation_peak_threshold = j["compression_params"]["rotation_peak_threshold"];
   }
+  else
+    std::cout << "Error parsing the threshold parameters" << std::endl;
 
   // now read in the input file line-by-line and compress
   Eigen::MatrixXd simData;
