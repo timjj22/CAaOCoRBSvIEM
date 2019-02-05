@@ -1,3 +1,9 @@
+/*
+  Rotation handling for the compression system
+
+  Timothy Jeruzalski - 2018
+*/
+
 #ifndef ROTATIONINTERPOLATION_H
 #define ROTATIONINTERPOLATION_H
 

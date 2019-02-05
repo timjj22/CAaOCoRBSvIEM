@@ -1,0 +1,16 @@
+{
+    "ascii_output"                 : true,
+    "input_file"                   : "input.dmat",
+    "compressed_output_dir"        : "test_output/",
+    "compressed_output_file"       : "cState.dmat",
+    "decompressed_output_file"     : "uState.dmat",
+    "contact_info"                 : "a.contact",
+    "decompress_rate"              : 0.01,
+    "compression_params"           : {
+        "position_threshold"           : 5e-2,
+	"position_peak_threshold"      : 5e-3,
+	"rotation_threshold"           : 1e-2,
+	"rotation_peak_threshold"      : 5e-3
+    },
+    "format"                       : ["q", "p"]
+}

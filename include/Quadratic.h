@@ -1,3 +1,8 @@
+/*
+  Position handling for the compression shceme
+
+  Timothy Jeruzalski - 2018
+*/
 #ifndef QUADRATIC_H
 #define QUADRATIC_H
 

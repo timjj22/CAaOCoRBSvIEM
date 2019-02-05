@@ -27,8 +27,8 @@ Compressor::~Compressor()
 
 bool Compressor::compressFrame(const CompressionEngine::Frame& newFrame, bool contact, bool force /* = 0*/)
 {
-  intermediatePositionFrames.push_back(newFrame);
-  intermediateRotationFrames.push_back(newFrame);
+  intermediatePositionFrames.emplace_back(newFrame);
+  intermediateRotationFrames.emplace_back(newFrame);
 
   // if we know there is a contact starting now, then drop this frame and the this+2 frame keyframes
   bool forceFrame = force;
@@ -48,7 +48,7 @@ bool Compressor::compressFrame(const CompressionEngine::Frame& newFrame, bool co
     forceFrame |= 1;
   }
 
-  return compressFramePosition(forceFrame) || compressFrameRotation(forceFrame);
+  return compressFramePosition(forceFrame) | compressFrameRotation(forceFrame); // the || short circuits 
 }
 
 bool Compressor::compressFramePosition(bool force)
@@ -78,6 +78,7 @@ bool Compressor::compressFramePosition(bool force)
   }
   else if(peakDetected(pPThreshold, positionError, positionErrorPrev, positionErrorDiffPrev))
   {
+    printf("pos peak\n");
     // upon a peak, add the f-2 keyframe:
     compressedPositionFrames.push_back(cppPosFrame);
     compressed = 1;
@@ -143,6 +144,7 @@ bool Compressor::compressFrameRotation(bool force)
   }
   else if(peakDetected(rPThreshold, rotationError, rotationErrorPrev, rotationErrorDiffPrev))
   {
+    printf("rot peak\n");
     compressedRotationFrames.push_back(cppRotFrame);
     compressed = 1;
 
