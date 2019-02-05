@@ -4,7 +4,7 @@
     "compressed_output_dir"        : "test_output/",
     "compressed_output_file"       : "cState.dmat",
     "decompressed_output_file"     : "uState.dmat",
-    "contact_info"                 : "a.contact",
+    "contact_info"                 : "sim.contact",
     "decompress_rate"              : 0.01,
     "compression_params"           : {
         "position_threshold"           : 5e-2,

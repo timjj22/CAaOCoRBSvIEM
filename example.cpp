@@ -47,6 +47,8 @@ int main(int argc, char* argv[])
   std::ifstream i(argv[1], std::ifstream::in);
   i >> j;
 
+  // READ IN ALL OF THE SIMULATION DATA AND CONFIGURATIONS
+
   // output formatting for the DMAT
   bool ascii = j["ascii_output"];
 
@@ -83,9 +85,33 @@ int main(int argc, char* argv[])
     std::cout << "Error reading input file" << std::endl;
     return 1;
   }
-
+  
   // 7 elements per object (4 for quat, 3 for pos), but first row is the timesteps for the simulation
   int32_t objects = (simData.rows() - 1) / 7;
+
+  // read in the optional compression information
+  // provide a custom comparator to deal with floating point keys
+  auto cmp = [](double a, double b){ return (std::abs(a - b) > 1e-7) && (a < b); };
+  std::map<double, std::vector<std::pair<int32_t, int32_t> >, decltype(cmp)> contact_pairs(cmp);
+  if(contact_info != "")
+  {
+    std::ifstream cInfo(contact_info, std::ifstream::in);
+    std::string line;
+    while(std::getline(cInfo, line))
+    {
+      // now want to split up for the commas
+      double time;
+      int32_t o1, o2;
+      char c1, c2;
+      std::stringstream ss(line);
+      ss >> time >> c1 >> o1 >> c2 >> o2; // parse the row
+      contact_pairs[time].emplace_back(std::pair<int32_t, int32_t>(o1, o2));
+    }
+  }
+
+
+  // CREATE COMPRESSION OBJECTS (ONE PER SIMULATION OBJECT)
+  
 
   // make a compressor/decompressor pair per object
   std::vector<Compressor> comps;
@@ -96,20 +122,54 @@ int main(int argc, char* argv[])
     decomps.emplace_back();
   }
 
+
+  // COMPRESS THE DATA FRAME BY FRAME (THIS CAN ALSO BE SETUP FOR STREAMING)
+
+
   // this is trivially parallelizable, reading in the column corresponding to a single simulation frame, across the rows of each object
+  /*
+    Want to record a given contact if an object goes into or out of persistent contact
+    state     :  0  0  1  1  1  0  0
+    state - 1 :     0  0  1  1  1  0
+    tripped   :  0  0  1  0  0  1  0
+    
+    trip the contact when: state XOR (state - 1) == 1
+  */
+  Eigen::Matrix<bool, Eigen::Dynamic, 1> contactStatus = Eigen::Matrix<bool, Eigen::Dynamic, 1>::Zero(objects); // 1 represents this object is in contact
+  Eigen::Matrix<bool, Eigen::Dynamic, 1> prevContactStatus = Eigen::Matrix<bool, Eigen::Dynamic, 1>::Zero(objects); // 1 represents this object is in contact
   for(int32_t i = 0; i < simData.cols(); i++)
   {
+    // for the new time, update the contactStatus
+    contactStatus *= 0;
+    if(contact_pairs.count(simData(0, i)))
+    {
+      for(auto k: contact_pairs[simData(0, i)])
+      {
+	contactStatus(k.first) = 1;
+	contactStatus(k.second) = 1;
+      }
+    }
     for(int32_t j = 0; j < objects; j++)
     {
+      if(contactStatus(j) ^ prevContactStatus(j))
+	std::cout << "contact_info" << std::endl;
+      
       comps[j].compressFrame(CompressionEngine::Frame(simData(0, i),
 						      formatting[0] == "q" ? simData.col(i).segment(1 + 7*(j), 4) : simData.col(i).segment(1 + 7*(j) + 3, 4),
 						      formatting[0] == "p" ? simData.col(i).segment(1 + 7*(j), 3) : simData.col(i).segment(1 + 7*(j) + 4, 3)
 						      ),
-			     0, // if we have contact information, use this
+			     // 0, // if we have contact information, use this
+			     (contactStatus(j) ^ prevContactStatus(j)),
 			     (i < simData.cols() - 1) ? 0 : 1 // force the final frame to be added into the compressed representation
 			     );
     }
+    
+    prevContactStatus = contactStatus;
   }
+
+
+  // READ OUT THE COMPRESSED DATA
+
   
   // now that the data has been read in, output the compressed representation per object (kinda messy)
   std::vector<Eigen::MatrixXd> compressedPositions;
@@ -123,6 +183,9 @@ int main(int argc, char* argv[])
   }
 
 
+  // PASS THE COMPRESSED DATA TO THE DECOMPRESSOR
+
+  
   // populate the decompressor data
   for(int32_t i = 0; i < objects; i++)
   {
@@ -139,6 +202,10 @@ int main(int argc, char* argv[])
 
   int32_t timeSteps = (endTime - startTime) / decompressRate;
   Eigen::MatrixXd states(1 + 7*objects, timeSteps); 
+
+
+  // DECOMPRESS THE DATA
+
   
   for(int32_t i = 0; i < timeSteps; i++)
   {
@@ -164,6 +231,10 @@ int main(int argc, char* argv[])
     }
   }
 
+
+  // WRITE OUTPUT FILE
+  
+  
   // now output the uncompressed state matrix
   igl::writeDMAT(output_d, states, ascii);
 }
