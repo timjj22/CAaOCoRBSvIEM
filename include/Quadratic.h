@@ -22,8 +22,11 @@ public:
     resetFit(NULL);
   }
   
-  bool resetFit(std::vector<CompressionEngine::Frame>* intermediateFrames)
+  Eigen::MatrixXd resetFit(std::vector<CompressionEngine::Frame>* intermediateFrames)
   {
+    /*
+      Return the fit for the current frames
+    */
     intermediate = intermediateFrames;
     /* FAST methods are only to be used per-object compression */
     fastTTT = Eigen::MatrixXd::Zero(3,3);
@@ -36,7 +39,16 @@ public:
     {
       fastUpdate((*intermediateFrames)[j], (double)j);
     }
-    return 1;
+
+    Eigen::MatrixXd weights;
+    if(intermediateFrames)
+    {
+      fastPrecompute(*intermediateFrames);
+      Eigen::MatrixXd bcs(3, 2);
+      bcs << intermediateFrames->front().pos, intermediateFrames->back().pos;
+      fastSolve(bcs.transpose(), weights);
+    }
+    return weights;
   }
   
   bool precompute(std::vector<CompressionEngine::Frame>& intermediateFrames);
@@ -61,14 +73,13 @@ private:
 
    */
   double quadraticEnergy(const Eigen::MatrixXd & T, const Eigen::MatrixXd & X, const Eigen::MatrixXd & A);
-
-  // performs minimization in order to solve for the coefficients
-  bool determineQuadraticCoefficients(const Eigen::MatrixXd & X, const Eigen::MatrixXd & T, const Eigen::MatrixXd & BCs, Eigen::MatrixXd & A);
-  bool fastDetermineQuadraticCoefficients(const Eigen::MatrixXd& TTX, const Eigen::MatrixXd& BCs, Eigen::MatrixXd& A);
-
+  
   bool fastUpdate(const CompressionEngine::Frame& newestFrame);
   bool fastUpdate(const CompressionEngine::Frame& newestPos, double frameNumber);
   
+  // performs minimization in order to solve for the coefficients
+  bool determineQuadraticCoefficients(const Eigen::MatrixXd & X, const Eigen::MatrixXd & T, const Eigen::MatrixXd & BCs, Eigen::MatrixXd & A);
+  bool fastDetermineQuadraticCoefficients(const Eigen::MatrixXd& TTX, const Eigen::MatrixXd& BCs, Eigen::MatrixXd& A);  
   // constructs a full matrix from the intermediate frame vector
   bool constructIntermediateStateMatrix(const std::vector<CompressionEngine::Frame>& intermediateFrames, Eigen::MatrixXd& states);
 

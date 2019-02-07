@@ -105,7 +105,7 @@ int main(int argc, char* argv[])
       char c1, c2;
       std::stringstream ss(line);
       ss >> time >> c1 >> o1 >> c2 >> o2; // parse the row
-      contact_pairs[time].emplace_back(std::pair<int32_t, int32_t>(o1, o2));
+      contact_pairs[time].emplace_back(o1, o2);
     }
   }
 

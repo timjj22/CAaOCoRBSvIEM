@@ -85,14 +85,16 @@ bool Compressor::compressFramePosition(bool force)
    
     // clear the old intermediate frames out and reset the error averages
     intermediatePositionFrames.erase(intermediatePositionFrames.begin(), intermediatePositionFrames.end() - 3);
-    qSolve.resetFit(&intermediatePositionFrames);
+    Eigen::MatrixXd iFit = qSolve.resetFit(&intermediatePositionFrames);
 
     // add in the f-2 -> f keyframe
+    /*
+    qSolve.fastPrecompute(intermediatePositionFrames);
     qSolve.fastSolve((Eigen::MatrixXd(3, 2) << intermediatePositionFrames.front().pos, intermediatePositionFrames.back().pos).finished().transpose(), weights);
-    compressedPositionFrames.emplace_back(intermediatePositionFrames.back().time, (Eigen::VectorXd(6) << weights.row(1).transpose(), intermediatePositionFrames.back().pos).finished());
+    */
+    compressedPositionFrames.emplace_back(intermediatePositionFrames.back().time, (Eigen::VectorXd(6) << iFit.row(1).transpose(), intermediatePositionFrames.back().pos).finished());
 
     intermediatePositionFrames.erase(intermediatePositionFrames.begin(), intermediatePositionFrames.end() - 1);
-    qSolve.resetFit(&intermediatePositionFrames);
 
     // add 2 frames here:
     contactFrames += 2;    
@@ -105,7 +107,7 @@ bool Compressor::compressFramePosition(bool force)
 
     // remove the irrelevant frames
     intermediatePositionFrames.erase(intermediatePositionFrames.begin(), intermediatePositionFrames.end() - 2);
-
+    
     // add 1 error based frame:
     errorFrames += 1;
   }
@@ -120,6 +122,8 @@ bool Compressor::compressFramePosition(bool force)
     positionError = 0;
     positionErrorPrev = 0;
     positionErrorDiffPrev = 0;
+    
+    qSolve.resetFit(&intermediatePositionFrames);
   }
   return compressed;
 }
