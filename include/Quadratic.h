@@ -34,8 +34,11 @@ public:
     fastXTX = Eigen::MatrixXd::Zero(3,3);
     NF = Eigen::MatrixXd::Zero(3,3);
 
-    /* Add the previously entered intermediate frames into the running fit alg */
-    for(uint32_t j = 0; intermediateFrames != NULL && j < intermediateFrames->size(); j++)
+    /* 
+       Add the previously entered intermediate frames into the running fit alg 
+       ** BUT **  not the last one, as that is needed for the refit later
+    */
+    for(uint32_t j = 0; intermediateFrames != NULL && j < intermediateFrames->size() - 1; j++)
     {
       fastUpdate((*intermediateFrames)[j], (double)j);
     }
