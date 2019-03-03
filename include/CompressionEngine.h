@@ -18,6 +18,7 @@ public:
   
   struct Frame {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    
     Frame() : time(0) { rot = Eigen::Quaterniond::Identity(); pos = Eigen::Vector3d::Zero(); };
     Frame(double t) : time(t) { rot = Eigen::Quaterniond::Identity(); pos = Eigen::Vector3d::Zero(); };
     Frame(double t, Eigen::Quaterniond rotation, Eigen::Vector3d position) : time(t), rot(rotation), pos(position) { };
@@ -32,6 +33,7 @@ public:
   };
   struct CompressedPositionFrame {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    
     CompressedPositionFrame() : time(0) { pos = Eigen::VectorXd::Zero(6);}
     CompressedPositionFrame(double t) : time(t) { pos = Eigen::VectorXd::Zero(6); };
     CompressedPositionFrame(double t, Eigen::VectorXd position) : time(t), pos(position) { };
@@ -42,6 +44,7 @@ public:
   };
   struct CompressedRotationFrame {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    
     CompressedRotationFrame() : time(0) { rot = Eigen::Vector4d::Zero(); };
     CompressedRotationFrame(double t) : time(t) { rot = Eigen::Vector4d::Zero(); };
     CompressedRotationFrame(double t, Eigen::Vector4d rotation) : time(t), rot(rotation) { };

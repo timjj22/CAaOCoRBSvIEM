@@ -91,7 +91,7 @@ int main(int argc, char* argv[])
 
   // read in the optional compression information
   // provide a custom comparator to deal with floating point keys
-  auto cmp = [](double a, double b){ return (std::abs(a - b) > 1e-7) && (a < b); };
+  auto cmp = [](double a, double b){ return (std::abs(a - b) > 1e-9) && (a < b); };
   std::map<double, std::vector<std::pair<int32_t, int32_t> >, decltype(cmp)> contact_pairs(cmp);
   if(contact_info != "")
   {

@@ -157,8 +157,14 @@ bool Compressor::compressFrameRotation(bool force)
 
     // remove the frames from the window:
     intermediateRotationFrames.erase(intermediateRotationFrames.begin(), intermediateRotationFrames.end() - 3);
-    // since we don't do the double keyframe here,
-    contactFlag += 1;
+
+    // Something weird happening if dropping a frame too close. Skip for now
+    
+    compressedRotationFrames.emplace_back(intermediateRotationFrames.back().time);
+    RI.linearFit(intermediateRotationFrames, compressedRotationFrames.back());
+    intermediateRotationFrames.erase(intermediateRotationFrames.begin(), intermediateRotationFrames.end() - 1);
+    
+    contactFlag += 2;
   }
   else if(std::abs(rotationError) > rThreshold)
   {
